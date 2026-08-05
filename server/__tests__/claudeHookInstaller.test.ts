@@ -93,6 +93,62 @@ describe('claudeHookInstaller', () => {
     expect(areHooksInstalled()).toBe(false);
   });
 
+  // 8a. THE regression the 1-star Marketplace review reported: an unparseable
+  //     settings.json used to read as {} and the subsequent write replaced the
+  //     user's whole file (permission rules included) with only our hooks.
+  //     Install must reject and leave the file byte-for-byte untouched.
+  it('leaves a malformed settings.json byte-for-byte unchanged on install', async () => {
+    const settingsPath = path.join(tmpBase, '.claude', 'settings.json');
+    const malformed = '{ "permissions": { "allow": ["Bash(ls:*)"] }, }'; // trailing comma
+    fs.writeFileSync(settingsPath, malformed);
+
+    await expect(installHooks()).rejects.toThrow(/Couldn't parse/);
+
+    expect(fs.readFileSync(settingsPath, 'utf-8')).toBe(malformed);
+    expect(fs.existsSync(settingsPath + '.backup')).toBe(false);
+    expect(fs.existsSync(settingsPath + '.pixel-agents-tmp')).toBe(false);
+  });
+
+  // 8a'. Same for a BOM'd file: JSON.parse rejects a UTF-8 BOM, and an
+  //      editor-saved settings.json is exactly the kind of file that has one.
+  it('leaves a BOM-prefixed settings.json unchanged on install', async () => {
+    const settingsPath = path.join(tmpBase, '.claude', 'settings.json');
+    const bommed = '﻿' + JSON.stringify({ permissions: { allow: ['Bash(ls:*)'] } });
+    fs.writeFileSync(settingsPath, bommed);
+
+    await expect(installHooks()).rejects.toThrow(/Couldn't parse/);
+
+    expect(fs.readFileSync(settingsPath, 'utf-8')).toBe(bommed);
+    expect(fs.existsSync(settingsPath + '.backup')).toBe(false);
+  });
+
+  // 8a''. The merge contract on the happy path: unrelated keys and third-party
+  //       hook entries survive an install.
+  it('preserves unrelated keys and third-party hooks on install', async () => {
+    const settingsPath = path.join(tmpBase, '.claude', 'settings.json');
+    const thirdParty = {
+      matcher: '',
+      hooks: [{ type: 'command', command: 'node /elsewhere/other-tool.js' }],
+    };
+    fs.writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        permissions: { allow: ['Bash(ls:*)'], deny: ['Read(.env)'] },
+        model: 'opus',
+        hooks: { PreToolUse: [thirdParty] },
+      }),
+    );
+
+    await installHooks();
+
+    const settings = readSettings();
+    expect(settings.permissions).toEqual({ allow: ['Bash(ls:*)'], deny: ['Read(.env)'] });
+    expect(settings.model).toBe('opus');
+    const preToolUse = (settings.hooks as Record<string, unknown[]>)['PreToolUse'];
+    expect(preToolUse).toHaveLength(2);
+    expect(preToolUse[0]).toEqual(thirdParty);
+  });
+
   // 8b. One-time backup before first modification
   it('backs up settings.json once before the first modification', async () => {
     const settingsPath = path.join(tmpBase, '.claude', 'settings.json');
