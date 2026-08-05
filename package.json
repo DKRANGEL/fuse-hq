@@ -32,6 +32,7 @@
     "dist/cli.js",
     "dist/extension.js",
     "dist/hooks/claude-hook.js",
+    "dist/uninstall.js",
     "dist/assets/",
     "dist/webview/",
     "icon.png"
@@ -83,6 +84,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
+    "vscode:uninstall": "node ./dist/uninstall.js",
     "prepack": "npm run package",
     "build:extension": "node esbuild.js --production",
     "build:webview": "cd webview-ui && npm run build",
