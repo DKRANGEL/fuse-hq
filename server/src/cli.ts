@@ -80,8 +80,9 @@ Options:
 /** First-run consent prompt for modifying ~/.claude/settings.json. Only asks
  *  on an interactive terminal; non-interactive runs (CI, spawned processes)
  *  skip the install until consent is granted elsewhere — interactively or via
- *  the UI hooks toggle. */
-async function promptHooksConsent(): Promise<'granted' | 'declined' | 'skipped'> {
+ *  the UI hooks toggle. Mirrors the VS Code notification: 'not-now' persists
+ *  nothing (ask again next run); only the explicit 'never' turns hooks off. */
+async function promptHooksConsent(): Promise<'granted' | 'not-now' | 'never' | 'skipped'> {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     return 'skipped';
   }
@@ -89,12 +90,14 @@ async function promptHooksConsent(): Promise<'granted' | 'declined' | 'skipped'>
   try {
     const answer = (
       await rl.question(
-        'Pixel Agents adds hook entries to ~/.claude/settings.json (merged with your existing settings, backed up first) to detect agents instantly.\nInstall hooks? [Y/n] ',
+        "To show your agents in real time, Pixel Agents needs to add its hooks to ~/.claude/settings.json. Your existing settings are kept safe, and you can remove Pixel Agents' hooks at any time.\nInstall hooks? [Y/n/never] ",
       )
     )
       .trim()
       .toLowerCase();
-    return answer === '' || answer === 'y' || answer === 'yes' ? 'granted' : 'declined';
+    if (answer === '' || answer === 'y' || answer === 'yes') return 'granted';
+    if (answer === 'never') return 'never';
+    return 'not-now';
   } finally {
     rl.close();
   }
@@ -250,10 +253,14 @@ async function main(): Promise<void> {
         if (answer === 'granted') {
           grantHooksConsent();
           consent = true;
-        } else if (answer === 'declined') {
+        } else if (answer === 'never') {
           adapter.setSetting('pixel-agents.hooksEnabled', false);
           runtime.hooksEnabled.current = false;
           console.log('[Pixel Agents] Hooks disabled. Re-enable them any time in the UI settings.');
+        } else if (answer === 'not-now') {
+          console.log(
+            '[Pixel Agents] Skipping hook install for this run — you will be asked again next time.',
+          );
         } else {
           console.log(
             '[Pixel Agents] Hooks not installed: modifying ~/.claude/settings.json needs one-time approval. Run pixel-agents interactively or enable hooks in the UI settings.',

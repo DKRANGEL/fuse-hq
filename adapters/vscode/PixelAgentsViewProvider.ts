@@ -241,20 +241,22 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
   /** First-run consent gate: never touch ~/.claude/settings.json until the
    *  user has approved it once (persisted in config.json, shared with the
    *  standalone CLI). Hooks already present count as consent granted to a
-   *  pre-consent version. Declining turns the hooks setting off; dismissing
-   *  the toast asks again next startup. */
+   *  pre-consent version. "Not Now" and a plain dismissal both leave
+   *  everything untouched and ask again next startup; only the explicit
+   *  "Don't Ask Again" persists hooks-off. */
   private async installHooksWithConsent(port: number, token: string): Promise<void> {
     if (!readConfig().hooksConsentGiven) {
       if (await claudeProvider.areHooksInstalled()) {
         grantHooksConsent();
       } else {
         const choice = await vscode.window.showInformationMessage(
-          'Pixel Agents detects your Claude Code agents through hooks, which requires adding entries to ~/.claude/settings.json (merged with your existing settings, backed up first). Install them?',
+          "To show your agents in real time, Pixel Agents needs to add its hooks to ~/.claude/settings.json. Your existing settings are kept safe, and you can remove Pixel Agents' hooks at any time.",
           'Install Hooks',
           'Not Now',
+          "Don't Ask Again",
         );
         if (choice !== 'Install Hooks') {
-          if (choice === 'Not Now') {
+          if (choice === "Don't Ask Again") {
             this.adapter.setSetting(GLOBAL_KEY_HOOKS_ENABLED, false);
             this.runtime.hooksEnabled.current = false;
           }
