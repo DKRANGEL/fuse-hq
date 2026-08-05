@@ -430,8 +430,10 @@ function App() {
         />
       )}
 
-      {/* Hooks first-run tooltip */}
-      {!hooksInfoShown && !hooksTooltipDismissed && (
+      {/* Hooks first-run tooltip. Gated on hooksEnabled: since hook install
+          became consent-gated, hooks can be off/uninstalled on first run, and
+          announcing "Instant Detection Active" would be a lie. */}
+      {hooksEnabled && !hooksInfoShown && !hooksTooltipDismissed && (
         <Tooltip
           title="Instant Detection Active"
           position="top-right"
