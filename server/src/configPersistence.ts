@@ -38,6 +38,10 @@ export interface PixelAgentsConfig {
   vscode: AdapterSettings;
   standalone: AdapterSettings;
   externalAssetDirectories: string[];
+  /** One-time user approval to modify ~/.claude/settings.json. Shared across
+   *  surfaces (consent is per-human, not per-adapter); until granted, neither
+   *  surface installs hooks. */
+  hooksConsentGiven: boolean;
 }
 
 const DEFAULT_ADAPTER_SETTINGS: AdapterSettings = {
@@ -126,6 +130,7 @@ export function readConfig(): PixelAgentsConfig {
         vscode: { ...DEFAULT_ADAPTER_SETTINGS },
         standalone: { ...DEFAULT_ADAPTER_SETTINGS },
         externalAssetDirectories: [],
+        hooksConsentGiven: false,
       };
     }
     const raw = fs.readFileSync(filePath, 'utf-8');
@@ -136,6 +141,8 @@ export function readConfig(): PixelAgentsConfig {
       externalAssetDirectories: Array.isArray(parsed.externalAssetDirectories)
         ? parsed.externalAssetDirectories.filter((d): d is string => typeof d === 'string')
         : [],
+      hooksConsentGiven:
+        typeof parsed.hooksConsentGiven === 'boolean' ? parsed.hooksConsentGiven : false,
     };
   } catch (err) {
     console.error('[Pixel Agents] Failed to read config file:', err);
@@ -143,7 +150,17 @@ export function readConfig(): PixelAgentsConfig {
       vscode: { ...DEFAULT_ADAPTER_SETTINGS },
       standalone: { ...DEFAULT_ADAPTER_SETTINGS },
       externalAssetDirectories: [],
+      hooksConsentGiven: false,
     };
+  }
+}
+
+/** Persist the one-time user approval for modifying ~/.claude/settings.json. */
+export function grantHooksConsent(): void {
+  const cfg = readConfig();
+  if (!cfg.hooksConsentGiven) {
+    cfg.hooksConsentGiven = true;
+    writeConfig(cfg);
   }
 }
 

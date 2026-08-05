@@ -27,7 +27,7 @@ server/                              Lifecycle runtime + Fastify HTTP/WS server
     providers/hook/claude/           Reference HookProvider — only place that knows Claude specifics
       claude.ts                      normalizeHookEvent for 11 Claude events, formatToolStatus, file fallback
       claudeTeamProvider.ts          TeamProvider: reads ~/.claude/teams/<name>/config.json
-      claudeHookInstaller.ts         Atomic install/uninstall in ~/.claude/settings.json
+      claudeHookInstaller.ts         Consent-gated install/uninstall in ~/.claude/settings.json (abort on unparseable file, one-time .backup, re-read + retry write cycle)
       constants.ts                   Claude hook event names, script path
       hooks/claude-hook.ts           Hook script (CJS+shebang, bundled to dist/hooks/claude-hook.js)
     providers/index.ts               Provider registry
@@ -58,6 +58,7 @@ adapters/vscode/                     VS Code surface — composes core + server
   PixelAgentsViewProvider.ts         WebviewViewProvider, thin bridge to AgentRuntime
   agentManager.ts                    Terminal lifecycle (claude --session-id <uuid>), restore, persist
   vscodeTerminalAdapter.ts           TerminalAdapter implementation
+  uninstall.ts                       vscode:uninstall hook — removes hook entries after extension removal
   migrateVsCodeState.ts              One-time legacy state migration (verify-before-clear)
   constants.ts                       VS Code IDs, command names, key names
 
@@ -449,7 +450,7 @@ Three tiers, each with its own framework.
 | `teamUtils.test.ts`            | Inline-teammate helpers                                             |
 | `claudeTeamProvider.test.ts`   | Discovery, membership, metadata extraction                          |
 | `claude.test.ts`               | `normalizeHookEvent` per Claude event, file fallback                |
-| `claudeHookInstaller.test.ts`  | Atomic install/uninstall                                            |
+| `claudeHookInstaller.test.ts`  | Atomic install/uninstall, unparseable-file abort, one-time backup   |
 | `claude-hook.test.ts`          | Spawned hook script integration (needs `dist/hooks/claude-hook.js`) |
 | `server.test.ts`               | HTTP lifecycle, auth, `/ws`, broadcast                              |
 | `mockClaudeRunner.test.ts`     | E2E scenario runner sanity                                          |
