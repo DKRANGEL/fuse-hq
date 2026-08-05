@@ -54,6 +54,21 @@ function readClaudeSettings(): ClaudeSettings {
   }
 }
 
+/** One-time safety net: before Pixel Agents' first-ever modification of
+ *  settings.json, copy it to settings.json.backup. Never overwritten after
+ *  that, so even a future installer bug leaves the user a recoverable copy. */
+function backupClaudeSettingsOnce(settingsPath: string): void {
+  const backupPath = settingsPath + '.backup';
+  try {
+    if (fs.existsSync(settingsPath) && !fs.existsSync(backupPath)) {
+      fs.copyFileSync(settingsPath, backupPath);
+      console.log(`[Pixel Agents] Backed up Claude settings to ${backupPath}`);
+    }
+  } catch (e) {
+    console.error(`[Pixel Agents] Failed to back up Claude settings: ${e}`);
+  }
+}
+
 /** Write settings back to ~/.claude/settings.json via atomic tmp + rename. */
 function writeClaudeSettings(settings: ClaudeSettings): void {
   const settingsPath = getClaudeSettingsPath();
@@ -62,6 +77,7 @@ function writeClaudeSettings(settings: ClaudeSettings): void {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
+    backupClaudeSettingsOnce(settingsPath);
     // Atomic write via tmp file + rename
     const tmpPath = settingsPath + '.pixel-agents-tmp';
     fs.writeFileSync(tmpPath, JSON.stringify(settings, null, 2), 'utf-8');

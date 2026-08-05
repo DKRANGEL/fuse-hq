@@ -93,6 +93,29 @@ describe('claudeHookInstaller', () => {
     expect(areHooksInstalled()).toBe(false);
   });
 
+  // 8b. One-time backup before first modification
+  it('backs up settings.json once before the first modification', () => {
+    const settingsPath = path.join(tmpBase, '.claude', 'settings.json');
+    const backupPath = settingsPath + '.backup';
+    const original = JSON.stringify({ permissions: { allow: ['Bash(ls:*)'] } });
+    fs.writeFileSync(settingsPath, original);
+
+    installHooks();
+    expect(fs.readFileSync(backupPath, 'utf-8')).toBe(original);
+
+    // A later modification must NOT refresh the backup: it preserves the
+    // pre-Pixel-Agents state, not the previous write.
+    uninstallHooks();
+    expect(fs.readFileSync(backupPath, 'utf-8')).toBe(original);
+  });
+
+  // 8c. No backup when there was nothing to back up
+  it('creates no backup when settings.json did not exist', () => {
+    installHooks();
+    const backupPath = path.join(tmpBase, '.claude', 'settings.json.backup');
+    expect(fs.existsSync(backupPath)).toBe(false);
+  });
+
   // 9. copyHookScript copies file
   it('copyHookScript copies to ~/.pixel-agents/hooks/', () => {
     // Create a mock extension path with dist/hooks/claude-hook.js
