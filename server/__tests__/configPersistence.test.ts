@@ -7,6 +7,7 @@ import {
   grantHooksConsent,
   parseAreaMappings,
   readConfig,
+  revokeHooksConsent,
   writeConfig,
 } from '../src/configPersistence.js';
 
@@ -109,6 +110,12 @@ describe('configPersistence: areas', () => {
       expect(readConfig().hooksConsentGiven).toBe(true);
       grantHooksConsent();
       expect(readConfig().hooksConsentGiven).toBe(true);
+    });
+
+    it('revokeHooksConsent forgets a granted consent (uninstall → ask again)', () => {
+      grantHooksConsent();
+      revokeHooksConsent();
+      expect(readConfig().hooksConsentGiven).toBe(false);
     });
   });
 

@@ -164,6 +164,17 @@ export function grantHooksConsent(): void {
   }
 }
 
+/** Forget the approval (called on extension uninstall): the consent belonged to
+ *  an installation that no longer exists, so a future install must ask again
+ *  instead of silently modifying settings.json. */
+export function revokeHooksConsent(): void {
+  const cfg = readConfig();
+  if (cfg.hooksConsentGiven) {
+    cfg.hooksConsentGiven = false;
+    writeConfig(cfg);
+  }
+}
+
 export function writeConfig(config: PixelAgentsConfig): void {
   const filePath = getConfigFilePath();
   const dir = path.dirname(filePath);
