@@ -273,6 +273,12 @@ async function main(): Promise<void> {
           console.error(`[Pixel Agents] ${err instanceof Error ? err.message : String(err)}`);
         }
       }
+    } else {
+      // Without this line, a persisted hooks-off makes startup skip the entire
+      // consent/install flow with zero output — indistinguishable from a bug.
+      console.log(
+        '[Pixel Agents] Hooks disabled — enable "Instant Detection (Hooks)" in the UI settings to install them.',
+      );
     }
 
     // Start scanning for external sessions (Claude running in user's terminal)

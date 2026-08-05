@@ -7,7 +7,7 @@ import {
   grantHooksConsent,
   parseAreaMappings,
   readConfig,
-  revokeHooksConsent,
+  resetHooksConfig,
   writeConfig,
 } from '../src/configPersistence.js';
 
@@ -112,10 +112,23 @@ describe('configPersistence: areas', () => {
       expect(readConfig().hooksConsentGiven).toBe(true);
     });
 
-    it('revokeHooksConsent forgets a granted consent (uninstall → ask again)', () => {
-      grantHooksConsent();
-      revokeHooksConsent();
-      expect(readConfig().hooksConsentGiven).toBe(false);
+    it('resetHooksConfig returns all hooks choices to factory state (uninstall → ask again)', () => {
+      const cfg = readConfig();
+      cfg.hooksConsentGiven = true;
+      cfg.vscode.hooksEnabled = false; // a persisted "off" must not survive uninstall,
+      cfg.standalone.hooksEnabled = false; // or the next install never prompts
+      cfg.vscode.hooksInfoShown = true;
+      cfg.standalone.hooksInfoShown = true;
+      writeConfig(cfg);
+
+      resetHooksConfig();
+
+      const reset = readConfig();
+      expect(reset.hooksConsentGiven).toBe(false);
+      expect(reset.vscode.hooksEnabled).toBe(true);
+      expect(reset.standalone.hooksEnabled).toBe(true);
+      expect(reset.vscode.hooksInfoShown).toBe(false);
+      expect(reset.standalone.hooksInfoShown).toBe(false);
     });
   });
 

@@ -164,15 +164,20 @@ export function grantHooksConsent(): void {
   }
 }
 
-/** Forget the approval (called on extension uninstall): the consent belonged to
- *  an installation that no longer exists, so a future install must ask again
- *  instead of silently modifying settings.json. */
-export function revokeHooksConsent(): void {
+/** Called on extension uninstall: return every hooks-related choice to factory
+ *  state — consent revoked, hooksEnabled/hooksInfoShown back to defaults in
+ *  both namespaces. The choices belonged to an installation that no longer
+ *  exists; a future install must start from the first-run experience (and its
+ *  consent prompt), not inherit stale decisions like a persisted hooks-off
+ *  that would silently skip the prompt forever. */
+export function resetHooksConfig(): void {
   const cfg = readConfig();
-  if (cfg.hooksConsentGiven) {
-    cfg.hooksConsentGiven = false;
-    writeConfig(cfg);
+  cfg.hooksConsentGiven = false;
+  for (const ns of ['vscode', 'standalone'] as const) {
+    cfg[ns].hooksEnabled = DEFAULT_ADAPTER_SETTINGS.hooksEnabled;
+    cfg[ns].hooksInfoShown = DEFAULT_ADAPTER_SETTINGS.hooksInfoShown;
   }
+  writeConfig(cfg);
 }
 
 export function writeConfig(config: PixelAgentsConfig): void {

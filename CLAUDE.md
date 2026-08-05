@@ -58,7 +58,7 @@ adapters/vscode/                     VS Code surface — composes core + server
   PixelAgentsViewProvider.ts         WebviewViewProvider, thin bridge to AgentRuntime
   agentManager.ts                    Terminal lifecycle (claude --session-id <uuid>), restore, persist
   vscodeTerminalAdapter.ts           TerminalAdapter implementation
-  uninstall.ts                       vscode:uninstall hook — removes hook entries + revokes hooks consent after extension removal
+  uninstall.ts                       vscode:uninstall hook — removes hook entries + factory-resets hooks config after extension removal
   migrateVsCodeState.ts              One-time legacy state migration (verify-before-clear)
   constants.ts                       VS Code IDs, command names, key names
 
