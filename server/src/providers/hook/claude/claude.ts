@@ -246,12 +246,11 @@ function normalizeHookEvent(
 /** Async so an installer throw (e.g. unparseable settings.json) always reaches
  *  callers as a rejection they can surface, never a sync throw. */
 async function installHooks(_serverUrl: string, _authToken: string): Promise<void> {
-  installerInstallHooks();
+  await installerInstallHooks();
 }
 
-function uninstallHooks(): Promise<void> {
-  installerUninstallHooks();
-  return Promise.resolve();
+async function uninstallHooks(): Promise<void> {
+  await installerUninstallHooks();
 }
 
 function areHooksInstalled(): Promise<boolean> {

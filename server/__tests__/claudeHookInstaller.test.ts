@@ -33,8 +33,8 @@ describe('claudeHookInstaller', () => {
   });
 
   // 1. installHooks adds entries
-  it('installHooks adds entries to settings.json', () => {
-    installHooks();
+  it('installHooks adds entries to settings.json', async () => {
+    await installHooks();
     const settings = readSettings();
     expect(settings.hooks).toBeTruthy();
     const hooks = settings.hooks as Record<string, unknown[]>;
@@ -44,9 +44,9 @@ describe('claudeHookInstaller', () => {
   });
 
   // 2. installHooks is idempotent
-  it('installHooks is idempotent', () => {
-    installHooks();
-    installHooks();
+  it('installHooks is idempotent', async () => {
+    await installHooks();
+    await installHooks();
     const hooks = readSettings().hooks as Record<string, unknown[]>;
     expect(hooks['Notification']).toHaveLength(1);
     expect(hooks['Stop']).toHaveLength(1);
@@ -54,8 +54,8 @@ describe('claudeHookInstaller', () => {
   });
 
   // 3. areHooksInstalled returns true after install
-  it('areHooksInstalled returns true after install', () => {
-    installHooks();
+  it('areHooksInstalled returns true after install', async () => {
+    await installHooks();
     expect(areHooksInstalled()).toBe(true);
   });
 
@@ -65,17 +65,17 @@ describe('claudeHookInstaller', () => {
   });
 
   // 5. uninstallHooks removes entries
-  it('uninstallHooks removes entries', () => {
-    installHooks();
+  it('uninstallHooks removes entries', async () => {
+    await installHooks();
     expect(areHooksInstalled()).toBe(true);
-    uninstallHooks();
+    await uninstallHooks();
     expect(areHooksInstalled()).toBe(false);
   });
 
   // 6. uninstallHooks cleans empty hooks object
-  it('uninstallHooks cleans empty hooks object', () => {
-    installHooks();
-    uninstallHooks();
+  it('uninstallHooks cleans empty hooks object', async () => {
+    await installHooks();
+    await uninstallHooks();
     const settings = readSettings();
     expect(settings.hooks).toBeUndefined();
   });
@@ -94,24 +94,24 @@ describe('claudeHookInstaller', () => {
   });
 
   // 8b. One-time backup before first modification
-  it('backs up settings.json once before the first modification', () => {
+  it('backs up settings.json once before the first modification', async () => {
     const settingsPath = path.join(tmpBase, '.claude', 'settings.json');
     const backupPath = settingsPath + '.backup';
     const original = JSON.stringify({ permissions: { allow: ['Bash(ls:*)'] } });
     fs.writeFileSync(settingsPath, original);
 
-    installHooks();
+    await installHooks();
     expect(fs.readFileSync(backupPath, 'utf-8')).toBe(original);
 
     // A later modification must NOT refresh the backup: it preserves the
     // pre-Pixel-Agents state, not the previous write.
-    uninstallHooks();
+    await uninstallHooks();
     expect(fs.readFileSync(backupPath, 'utf-8')).toBe(original);
   });
 
   // 8c. No backup when there was nothing to back up
-  it('creates no backup when settings.json did not exist', () => {
-    installHooks();
+  it('creates no backup when settings.json did not exist', async () => {
+    await installHooks();
     const backupPath = path.join(tmpBase, '.claude', 'settings.json.backup');
     expect(fs.existsSync(backupPath)).toBe(false);
   });
