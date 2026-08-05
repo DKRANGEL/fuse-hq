@@ -34,17 +34,24 @@ function getHookScriptPath(): string {
   return path.join(os.homedir(), HOOK_SCRIPTS_DIR, CLAUDE_HOOK_SCRIPT_NAME);
 }
 
-/** Read and parse ~/.claude/settings.json. Returns empty object if missing or malformed. */
+/** Surfaced to the user when settings.json exists but cannot be parsed. */
+export const SETTINGS_UNPARSEABLE_MESSAGE =
+  "Couldn't parse ~/.claude/settings.json — hooks not installed.";
+
+/** Read and parse ~/.claude/settings.json. A missing file is an empty config;
+ *  an existing file that cannot be read or parsed THROWS. It must never be
+ *  treated as empty: settings.json holds the user's permission rules, and a
+ *  later write based on `{}` would erase them all. */
 function readClaudeSettings(): ClaudeSettings {
   const settingsPath = getClaudeSettingsPath();
-  try {
-    if (fs.existsSync(settingsPath)) {
-      return JSON.parse(fs.readFileSync(settingsPath, 'utf-8')) as ClaudeSettings;
-    }
-  } catch (e) {
-    console.error(`[Pixel Agents] Failed to read Claude settings: ${e}`);
+  if (!fs.existsSync(settingsPath)) {
+    return {};
   }
-  return {};
+  try {
+    return JSON.parse(fs.readFileSync(settingsPath, 'utf-8')) as ClaudeSettings;
+  } catch (e) {
+    throw new Error(SETTINGS_UNPARSEABLE_MESSAGE, { cause: e });
+  }
 }
 
 /** Write settings back to ~/.claude/settings.json via atomic tmp + rename. */
@@ -94,9 +101,16 @@ function makeHookEntry(): ClaudeHookEntry {
   };
 }
 
-/** Check if Pixel Agents hooks are already installed in ~/.claude/settings.json. */
+/** Check if Pixel Agents hooks are already installed in ~/.claude/settings.json.
+ *  An unparseable file reads as "not installed" — the install path will then
+ *  refuse to touch it rather than rewrite it. */
 export function areHooksInstalled(): boolean {
-  const settings = readClaudeSettings();
+  let settings: ClaudeSettings;
+  try {
+    settings = readClaudeSettings();
+  } catch {
+    return false;
+  }
   if (!settings.hooks) return false;
   const events = CLAUDE_HOOK_EVENTS;
   return events.every((event) => {
@@ -109,6 +123,9 @@ export function areHooksInstalled(): boolean {
  * Install Pixel Agents hook entries into ~/.claude/settings.json for
  * Notification, Stop, and PermissionRequest events. Idempotent: removes
  * any existing Pixel Agents entries before adding fresh ones.
+ *
+ * Throws (before any write) when settings.json exists but cannot be parsed —
+ * callers surface the error to the user instead of installing.
  */
 export function installHooks(): void {
   const settings = readClaudeSettings();
@@ -139,9 +156,17 @@ export function installHooks(): void {
   }
 }
 
-/** Remove all Pixel Agents hook entries from ~/.claude/settings.json. Cleans up empty objects. */
+/** Remove all Pixel Agents hook entries from ~/.claude/settings.json. Cleans up empty objects.
+ *  Aborts (logged, no write) when the file cannot be parsed — same protection
+ *  as install: never rewrite a file we could not read. */
 export function uninstallHooks(): void {
-  const settings = readClaudeSettings();
+  let settings: ClaudeSettings;
+  try {
+    settings = readClaudeSettings();
+  } catch (e) {
+    console.error(`[Pixel Agents] ${e instanceof Error ? e.message : String(e)}`);
+    return;
+  }
   if (!settings.hooks) return;
 
   let changed = false;

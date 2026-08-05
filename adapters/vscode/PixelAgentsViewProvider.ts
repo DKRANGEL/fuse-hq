@@ -211,7 +211,13 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
         const hooksEnabled = this.adapter.getSetting<boolean>(GLOBAL_KEY_HOOKS_ENABLED, true);
         this.runtime.hooksEnabled.current = hooksEnabled;
         if (hooksEnabled) {
-          void claudeProvider.installHooks(`http://127.0.0.1:${config.port}`, config.token);
+          claudeProvider
+            .installHooks(`http://127.0.0.1:${config.port}`, config.token)
+            .catch((err: unknown) => {
+              vscode.window.showErrorMessage(
+                `Pixel Agents: ${err instanceof Error ? err.message : String(err)}`,
+              );
+            });
           if (!copyHookScript(this.context.extensionPath)) {
             console.warn('[Pixel Agents] Hook script not copied, hooks may not fire');
           }
@@ -304,10 +310,16 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
         this.runtime.hooksEnabled.current = enabled;
         if (enabled) {
           const serverConfig = this.pixelAgentsServer?.getConfig();
-          void claudeProvider.installHooks(
-            serverConfig ? `http://127.0.0.1:${serverConfig.port}` : '',
-            serverConfig?.token ?? '',
-          );
+          claudeProvider
+            .installHooks(
+              serverConfig ? `http://127.0.0.1:${serverConfig.port}` : '',
+              serverConfig?.token ?? '',
+            )
+            .catch((err: unknown) => {
+              vscode.window.showErrorMessage(
+                `Pixel Agents: ${err instanceof Error ? err.message : String(err)}`,
+              );
+            });
           const copied = copyHookScript(this.context.extensionPath);
           console.log(
             copied

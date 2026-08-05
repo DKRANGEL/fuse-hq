@@ -128,10 +128,15 @@ async function main(): Promise<void> {
     const onSetHooksEnabled = async (enabled: boolean): Promise<void> => {
       if (!currentConfig) return;
       if (enabled) {
-        await claudeProvider.installHooks(
-          `http://127.0.0.1:${currentConfig.port}`,
-          currentConfig.token,
-        );
+        try {
+          await claudeProvider.installHooks(
+            `http://127.0.0.1:${currentConfig.port}`,
+            currentConfig.token,
+          );
+        } catch (err) {
+          console.error(`[Pixel Agents] ${err instanceof Error ? err.message : String(err)}`);
+          return;
+        }
         const copied = copyHookScript(packageRoot);
         console.log(
           copied
