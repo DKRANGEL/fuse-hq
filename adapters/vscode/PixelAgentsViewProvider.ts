@@ -225,6 +225,9 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
   private installHooksAndScript(port: number | undefined, token: string | undefined): void {
     claudeProvider
       .installHooks(port !== undefined ? `http://127.0.0.1:${port}` : '', token ?? '')
+      .then(() => {
+        this.sendOrBuffer({ type: 'hooksStatus', installed: true });
+      })
       .catch((err: unknown) => {
         vscode.window.showErrorMessage(
           `Pixel Agents: ${err instanceof Error ? err.message : String(err)}`,
@@ -352,6 +355,7 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
           claudeProvider
             .uninstallHooks()
             .then(() => {
+              this.sendOrBuffer({ type: 'hooksStatus', installed: false });
               console.log('[Pixel Agents] Hooks disabled by user');
             })
             .catch((err: unknown) => {
@@ -463,6 +467,13 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
           hooksInfoShown,
           externalAssetDirectories: config.externalAssetDirectories,
           showAreas,
+        });
+
+        // Actual install state, distinct from the hooksEnabled preference —
+        // hooksEnabled defaults true while first-run consent is still pending.
+        this.webview?.postMessage({
+          type: 'hooksStatus',
+          installed: await claudeProvider.areHooksInstalled(),
         });
 
         // Folder→Area mappings (must arrive before any agentCreated/existingAgents
