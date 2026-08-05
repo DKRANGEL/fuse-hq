@@ -173,8 +173,12 @@ async function main(): Promise<void> {
             : '[Pixel Agents] Hooks NOT installed (user toggle), hook script missing',
         );
       } else {
-        await claudeProvider.uninstallHooks();
-        console.log('[Pixel Agents] Hooks uninstalled (user toggle)');
+        try {
+          await claudeProvider.uninstallHooks();
+          console.log('[Pixel Agents] Hooks uninstalled (user toggle)');
+        } catch (err) {
+          console.error(`[Pixel Agents] ${err instanceof Error ? err.message : String(err)}`);
+        }
       }
     };
 

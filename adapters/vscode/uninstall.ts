@@ -10,6 +10,8 @@
  */
 import { uninstallHooks } from '../../server/src/providers/hook/claude/claudeHookInstaller.js';
 
-// uninstallHooks never rejects (parse failures are logged and abort the write),
-// so a bare void is safe: no unhandledRejection can leak from the uninstall hook.
-void uninstallHooks();
+// There is no UI to surface errors to after uninstall — log and exit cleanly
+// (an unhandledRejection here would just be noise in VS Code's uninstall flow).
+uninstallHooks().catch((err: unknown) => {
+  console.error(`[Pixel Agents] ${err instanceof Error ? err.message : String(err)}`);
+});

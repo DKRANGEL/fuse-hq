@@ -122,6 +122,19 @@ describe('claudeHookInstaller', () => {
     expect(fs.existsSync(settingsPath + '.backup')).toBe(false);
   });
 
+  // 8a-2. Uninstall gets the same protection AND must not claim success: the
+  //       rejection is what stops callers from logging "uninstalled" while the
+  //       entries are still live in the broken file.
+  it('rejects uninstall on a malformed settings.json and leaves it unchanged', async () => {
+    const settingsPath = path.join(tmpBase, '.claude', 'settings.json');
+    const malformed = '{ "hooks": { "Stop": [] }, }';
+    fs.writeFileSync(settingsPath, malformed);
+
+    await expect(uninstallHooks()).rejects.toThrow(/hook entries left in place/);
+
+    expect(fs.readFileSync(settingsPath, 'utf-8')).toBe(malformed);
+  });
+
   // 8a''. The merge contract on the happy path: unrelated keys and third-party
   //       hook entries survive an install.
   it('preserves unrelated keys and third-party hooks on install', async () => {

@@ -349,8 +349,16 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
           this.installHooksAndScript(serverConfig?.port, serverConfig?.token);
           console.log('[Pixel Agents] Hooks enabled by user');
         } else {
-          void claudeProvider.uninstallHooks();
-          console.log('[Pixel Agents] Hooks disabled by user');
+          claudeProvider
+            .uninstallHooks()
+            .then(() => {
+              console.log('[Pixel Agents] Hooks disabled by user');
+            })
+            .catch((err: unknown) => {
+              vscode.window.showErrorMessage(
+                `Pixel Agents: ${err instanceof Error ? err.message : String(err)}`,
+              );
+            });
         }
       } else if (message.type === 'setHooksInfoShown') {
         this.adapter.setSetting(GLOBAL_KEY_HOOKS_INFO_SHOWN, true);

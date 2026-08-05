@@ -39,13 +39,13 @@ function getHookScriptPath(): string {
   return path.join(os.homedir(), HOOK_SCRIPTS_DIR, CLAUDE_HOOK_SCRIPT_NAME);
 }
 
-/** Surfaced to the user when settings.json exists but cannot be parsed. */
-export const SETTINGS_UNPARSEABLE_MESSAGE =
-  "Couldn't parse ~/.claude/settings.json — hooks not installed.";
+/** Surfaced to the user when settings.json exists but cannot be parsed. The
+ *  operation (install/uninstall) appends its own outcome suffix. */
+export const SETTINGS_UNPARSEABLE_MESSAGE = "Couldn't parse ~/.claude/settings.json";
 
 /** Surfaced when settings.json keeps changing under us across all retry attempts. */
 export const SETTINGS_CONCURRENT_WRITE_MESSAGE =
-  '~/.claude/settings.json is being modified by another process — hooks not installed.';
+  '~/.claude/settings.json is being modified by another process';
 
 /** Raw file content, or null when the file does not exist. Throws on read errors. */
 function readRawClaudeSettings(): string | null {
@@ -218,7 +218,21 @@ export function areHooksInstalled(): boolean {
  * of installing.
  */
 export async function installHooks(): Promise<void> {
-  const wrote = await mutateClaudeSettings((settings) => {
+  let wrote: boolean;
+  try {
+    wrote = await installEntries();
+  } catch (e) {
+    throw new Error(`${e instanceof Error ? e.message : String(e)} — hooks not installed.`, {
+      cause: e,
+    });
+  }
+  if (wrote) {
+    console.log('[Pixel Agents] Hooks installed in ~/.claude/settings.json');
+  }
+}
+
+function installEntries(): Promise<boolean> {
+  return mutateClaudeSettings((settings) => {
     if (!settings.hooks) {
       settings.hooks = {};
     }
@@ -238,16 +252,15 @@ export async function installHooks(): Promise<void> {
     }
     return changed;
   });
-  if (wrote) {
-    console.log('[Pixel Agents] Hooks installed in ~/.claude/settings.json');
-  }
 }
 
 /** Remove all Pixel Agents hook entries from ~/.claude/settings.json. Cleans up empty objects.
- *  Aborts (logged, no write) when the file cannot be parsed — same protection
- *  as install: never rewrite a file we could not read. */
+ *  Rejects (before any write) when the file cannot be parsed — same protection
+ *  as install: never rewrite a file we could not read. Callers surface the
+ *  error; claiming success after an aborted uninstall is how a "removed"
+ *  log line ends up next to entries that are still live. */
 export async function uninstallHooks(): Promise<void> {
-  let wrote = false;
+  let wrote: boolean;
   try {
     wrote = await mutateClaudeSettings((settings) => {
       if (!settings.hooks) return false;
@@ -270,8 +283,9 @@ export async function uninstallHooks(): Promise<void> {
       return changed;
     });
   } catch (e) {
-    console.error(`[Pixel Agents] ${e instanceof Error ? e.message : String(e)}`);
-    return;
+    throw new Error(`${e instanceof Error ? e.message : String(e)} — hook entries left in place.`, {
+      cause: e,
+    });
   }
   if (wrote) {
     console.log('[Pixel Agents] Hooks removed from ~/.claude/settings.json');
