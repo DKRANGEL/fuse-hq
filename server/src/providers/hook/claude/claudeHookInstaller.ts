@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import { HOOK_SCRIPTS_DIR } from '../../../constants.js';
+import { HOOK_SCRIPTS_DIR, SERVER_JSON_DIR } from '../../../constants.js';
 import {
   CLAUDE_HOOK_EVENTS,
   CLAUDE_HOOK_SCRIPT_NAME,
@@ -160,14 +160,43 @@ function writeClaudeSettings(settings: ClaudeSettings): void {
   }
 }
 
-/** Legacy script name (before rename to claude-hook.js). */
+/** Legacy script name (before rename to claude-hook.js). Brand-named, so a
+ *  bare substring match carries no real collision risk. */
 const LEGACY_HOOK_MARKER = 'pixel-agents-hook.js';
 
-/** Check if a hook entry belongs to Pixel Agents (current or legacy script name). */
-function isOurHookEntry(entry: ClaudeHookEntry): boolean {
-  return entry.hooks.some(
-    (h) => h.command.includes(HOOK_SCRIPT_MARKER) || h.command.includes(LEGACY_HOOK_MARKER),
+/** Check if a single hook command is ours. The script name alone is NOT
+ *  identity: `claude-hook.js` is a generic name another Claude tool could
+ *  plausibly use, and matching it alone would delete that tool's hook as if it
+ *  were ours. Ours = the script name AND our `.pixel-agents` directory in the
+ *  same command (any absolute path, either path-separator style). */
+function isOurHookCommand(command: string): boolean {
+  return (
+    (command.includes(HOOK_SCRIPT_MARKER) && command.includes(SERVER_JSON_DIR)) ||
+    command.includes(LEGACY_HOOK_MARKER)
   );
+}
+
+/** Whether any command in the entry is ours (used by areHooksInstalled). */
+function entryHasOurHook(entry: ClaudeHookEntry): boolean {
+  return (
+    Array.isArray(entry.hooks) &&
+    entry.hooks.some((h) => typeof h.command === 'string' && isOurHookCommand(h.command))
+  );
+}
+
+/** Remove our commands from an entry, preserving third-party hooks that share
+ *  it. Returns the slimmed entry, or null when nothing remains. Filtering at
+ *  the entry level would be wrong: an entry holds an ARRAY of hooks, and a
+ *  user who hand-merged our command into their own entry must not lose theirs
+ *  when we clean up ours. */
+function withoutOurHooks(entry: ClaudeHookEntry): ClaudeHookEntry | null {
+  if (!Array.isArray(entry.hooks)) return entry;
+  const kept = entry.hooks.filter(
+    (h) => !(typeof h.command === 'string' && isOurHookCommand(h.command)),
+  );
+  if (kept.length === entry.hooks.length) return entry;
+  if (kept.length === 0) return null;
+  return { ...entry, hooks: kept };
 }
 
 /** Build the shell command that Claude Code will execute for each hook event. */
@@ -204,7 +233,7 @@ export function areHooksInstalled(): boolean {
   const events = CLAUDE_HOOK_EVENTS;
   return events.every((event) => {
     const entries = settings.hooks?.[event];
-    return Array.isArray(entries) && entries.some(isOurHookEntry);
+    return Array.isArray(entries) && entries.some(entryHasOurHook);
   });
 }
 
@@ -242,8 +271,8 @@ function installEntries(): Promise<boolean> {
         settings.hooks[event] = [];
       }
       const entries = settings.hooks[event];
-      // Remove any existing Pixel Agents entries (in case script path changed)
-      const filtered = entries.filter((e) => !isOurHookEntry(e));
+      // Remove any existing Pixel Agents commands (in case the script path changed)
+      const filtered = entries.map(withoutOurHooks).filter((e): e is ClaudeHookEntry => e !== null);
       filtered.push(makeHookEntry());
       if (JSON.stringify(filtered) !== JSON.stringify(entries)) {
         settings.hooks[event] = filtered;
@@ -268,8 +297,12 @@ export async function uninstallHooks(): Promise<void> {
       for (const event of Object.keys(settings.hooks)) {
         const entries = settings.hooks[event];
         if (!Array.isArray(entries)) continue;
-        const filtered = entries.filter((e) => !isOurHookEntry(e));
-        if (filtered.length !== entries.length) {
+        const filtered = entries
+          .map(withoutOurHooks)
+          .filter((e): e is ClaudeHookEntry => e !== null);
+        // Length alone misses a slimmed shared entry (entry kept, our command
+        // removed from inside it) — compare content.
+        if (JSON.stringify(filtered) !== JSON.stringify(entries)) {
           settings.hooks[event] = filtered;
           changed = true;
         }

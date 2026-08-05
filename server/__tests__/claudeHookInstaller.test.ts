@@ -162,6 +162,58 @@ describe('claudeHookInstaller', () => {
     expect(preToolUse[0]).toEqual(thirdParty);
   });
 
+  // 8a-3. Identity requires OUR directory, not just the script name:
+  //       `claude-hook.js` is a generic filename another Claude tool could use,
+  //       and it must survive both install (dedup) and uninstall.
+  it('never touches a third-party hook that happens to be named claude-hook.js', async () => {
+    const settingsPath = path.join(tmpBase, '.claude', 'settings.json');
+    const lookalike = {
+      matcher: '',
+      hooks: [{ type: 'command', command: 'node /opt/other-tool/claude-hook.js' }],
+    };
+    fs.writeFileSync(settingsPath, JSON.stringify({ hooks: { Stop: [lookalike] } }));
+
+    await installHooks();
+    let stop = (readSettings().hooks as Record<string, unknown[]>)['Stop'];
+    expect(stop[0]).toEqual(lookalike);
+
+    await uninstallHooks();
+    stop = (readSettings().hooks as Record<string, unknown[]>)['Stop'];
+    expect(stop).toEqual([lookalike]);
+  });
+
+  // 8a-4. Per-hook filtering: an entry holding a third-party hook AND ours must
+  //       lose only ours, not the whole entry.
+  it('removes only our command from an entry shared with a third-party hook', async () => {
+    const settingsPath = path.join(tmpBase, '.claude', 'settings.json');
+    const theirCommand = 'node /elsewhere/other-tool.js';
+    const ourCommand = `node "${path.join(tmpBase, '.pixel-agents', 'hooks', 'claude-hook.js')}"`;
+    fs.writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        hooks: {
+          Stop: [
+            {
+              matcher: '',
+              hooks: [
+                { type: 'command', command: theirCommand },
+                { type: 'command', command: ourCommand, timeout: 5 },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+
+    await uninstallHooks();
+
+    const stop = (
+      readSettings().hooks as Record<string, Array<{ hooks: Array<{ command: string }> }>>
+    )['Stop'];
+    expect(stop).toHaveLength(1);
+    expect(stop[0].hooks.map((h) => h.command)).toEqual([theirCommand]);
+  });
+
   // 8b. One-time backup before first modification
   it('backs up settings.json once before the first modification', async () => {
     const settingsPath = path.join(tmpBase, '.claude', 'settings.json');
