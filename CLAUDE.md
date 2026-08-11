@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository state
 
-This repository is currently a blank slate: no git init, no package manifests, no source code, no build tooling. The only real content is `FUSE-HQ.md`, a living planning document (in Portuguese) that captures decisions made so far and is meant to be updated as the project progresses. Read it in full before starting work — it is the spec, and this CLAUDE.md only summarizes its key constraints.
+This is a fork of [pixel-agents-hq/pixel-agents](https://github.com/pixel-agents-hq/pixel-agents) (MIT), merged in via the `upstream` remote. `FUSE-HQ.md` is the living planning document (in Portuguese) for this fork's specific goals and decisions — read it in full before starting work; it's the spec, and this CLAUDE.md only summarizes its key constraints.
 
-There is no local copy of the upstream project yet. All structural details below (`core/`, `server/`, `webview-ui/`) describe the **upstream** repo as referenced in `FUSE-HQ.md`, not verified local code.
+For the upstream project's own detailed architecture reference (layering, protocol, providers, testing, build/dev commands), see `ARCHITECTURE.md` — it's the original project's `CLAUDE.md`, kept intact and up to date with `git pull upstream main`. `CONTEXT.md` is the upstream glossary for domain terms (Agent, Sub-agent, Teammate, Lead, Adopt, Headless agent, etc.) — use its vocabulary in code, comments, and docs when touching upstream-derived code.
 
 ## What this project is
 
-`fuse-hq` will be a fork of [pixel-agents-hq/pixel-agents](https://github.com/pixel-agents-hq/pixel-agents) (MIT) — a pixel-art "virtual office" that visualizes AI agent sessions as animated characters in a room. This instance is being customized for a specific client (Mateus, owner of Magic Fireworks and other companies) to show a branded virtual office.
+`fuse-hq` is a customized instance of Pixel Agents — a pixel-art "virtual office" that visualizes AI agent sessions as animated characters in a room — built for a specific client (Mateus, owner of Magic Fireworks and other companies) to show a branded virtual office.
 
 **Current phase deliverable is visual only**: a room styled with the company's branding and a character standing/with idle animation. No AI agent is wired up yet — this is intentional and already communicated to the client, not a gap to fill unprompted.
 
@@ -59,3 +59,10 @@ The standalone CLI binds to `127.0.0.1` by default. Exposing it on the network r
 - Exposing the server outside `127.0.0.1` / the local network.
 - Editing files inside `webview-ui/public/assets/`.
 - Multi-company or multi-room support (not yet agreed with the client).
+
+## Git remotes
+
+- `origin` → `DKRANGEL/fuse-hq` (this fork)
+- `upstream` → `pixel-agents-hq/pixel-agents` (for pulling updates: `git fetch upstream && git merge upstream/main`)
+
+**Never add Claude/Claude Code as a commit author, co-author, or contributor.** No `Co-Authored-By` trailers, no "Generated with Claude Code" messages, no Claude identity in `git config`. All commits use the repo owner's own git identity.
